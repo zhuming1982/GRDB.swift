@@ -943,6 +943,34 @@ extension Database {
         case replace = "REPLACE"
     }
     
+    // UPSERT was introduced in SQLite 3.24.0 http://www.sqlite.org/changes.html#version_3_24
+    #if GRDBCUSTOMSQLITE
+    public struct UpsertResolution {
+        var updates: (Database, TableAlias) throws -> [(ColumnExpression, SQLExpressible)]
+        var condition: (Database) throws -> SQLExpression?
+    }
+    
+    public enum InsertConflictResolution: Equatable {
+        case conflict(ConflictResolution)
+        case upsert(UpsertResolution)
+        
+        public static let rollback = InsertConflictResolution.conflict(.rollback)
+        public static let abort = InsertConflictResolution.conflict(.abort)
+        public static let fail = InsertConflictResolution.conflict(.fail)
+        public static let ignore = InsertConflictResolution.conflict(.ignore)
+        public static let replace = InsertConflictResolution.conflict(.replace)
+        
+        static public func == (lhs: InsertConflictResolution, rhs: InsertConflictResolution) -> Bool {
+            switch (lhs, rhs) {
+            case (.conflict(let lhs), .conflict(let rhs)): return lhs == rhs
+            default: return false
+            }
+        }
+    }
+    #else
+    public typealias InsertConflictResolution = ConflictResolution
+    #endif
+
     /// A foreign key action.
     ///
     /// See https://www.sqlite.org/foreignkeys.html

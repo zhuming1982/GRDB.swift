@@ -10,6 +10,19 @@ extension Database.ConflictResolution {
     }
 }
 
+#if GRDBCUSTOMSQLITE
+extension Database.InsertConflictResolution {
+    var invalidatesLastInsertedRowID: Bool {
+        switch self {
+        case .conflict(let conflict):
+            return conflict.invalidatesLastInsertedRowID
+        case .upsert:
+            return false
+        }
+    }
+}
+#endif
+
 // MARK: - PersistenceError
 
 /// An error thrown by a type that adopts PersistableRecord.
@@ -165,13 +178,13 @@ extension Row {
 /// See https://www.sqlite.org/lang_conflict.html
 public struct PersistenceConflictPolicy {
     /// The conflict resolution algorithm for insertions
-    public let conflictResolutionForInsert: Database.ConflictResolution
+    public let conflictResolutionForInsert: Database.InsertConflictResolution
     
     /// The conflict resolution algorithm for updates
     public let conflictResolutionForUpdate: Database.ConflictResolution
     
     /// Creates a policy
-    public init(insert: Database.ConflictResolution = .abort, update: Database.ConflictResolution = .abort) {
+    public init(insert: Database.InsertConflictResolution = .abort, update: Database.ConflictResolution = .abort) {
         self.conflictResolutionForInsert = insert
         self.conflictResolutionForUpdate = update
     }
@@ -892,7 +905,7 @@ final class DAO {
         self.primaryKey = primaryKey
     }
     
-    func insertStatement(onConflict: Database.ConflictResolution) throws -> UpdateStatement {
+    func insertStatement(onConflict: Database.InsertConflictResolution) throws -> UpdateStatement {
         let query = InsertQuery(
             onConflict: onConflict,
             tableName: databaseTableName,
@@ -988,7 +1001,7 @@ final class DAO {
 // MARK: - InsertQuery
 
 private struct InsertQuery: Hashable {
-    let onConflict: Database.ConflictResolution
+    let onConflict: Database.InsertConflictResolution
     let tableName: String
     let insertedColumns: [String]
     
@@ -1005,12 +1018,26 @@ extension InsertQuery {
         let columnsSQL = insertedColumns.map { $0.quotedDatabaseIdentifier }.joined(separator: ", ")
         let valuesSQL = databaseQuestionMarks(count: insertedColumns.count)
         let sql: String
+        #if GRDBCUSTOMSQLITE
+        switch onConflict {
+        case .conflict(let conflict):
+            switch conflict {
+            case .abort:
+                sql = "INSERT INTO \(tableName.quotedDatabaseIdentifier) (\(columnsSQL)) VALUES (\(valuesSQL))"
+            default:
+                sql = "INSERT OR \(conflict.rawValue) INTO \(tableName.quotedDatabaseIdentifier) (\(columnsSQL)) VALUES (\(valuesSQL))"
+            }
+        case .upsert(let upsert):
+            fatalError("Not implemented")
+        }
+        #else
         switch onConflict {
         case .abort:
             sql = "INSERT INTO \(tableName.quotedDatabaseIdentifier) (\(columnsSQL)) VALUES (\(valuesSQL))"
         default:
             sql = "INSERT OR \(onConflict.rawValue) INTO \(tableName.quotedDatabaseIdentifier) (\(columnsSQL)) VALUES (\(valuesSQL))"
         }
+        #endif
         InsertQuery.sqlCache.write { $0[self] = sql }
         return sql
     }
