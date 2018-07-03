@@ -254,7 +254,7 @@ extension AggregatingRequest {
 
 // MARK: - OrderedRequest
 
-/// The protocol for all requests that be ordered.
+/// The protocol for all requests that can be ordered.
 public protocol OrderedRequest {
     /// Creates a request with the provided *orderings promise*.
     ///
@@ -345,6 +345,33 @@ extension OrderedRequest {
         expression.unsafeRaw = true
         return order([expression])
     }
+}
+
+// MARK: - JoinableRequest
+
+/// The protocol for all requests that can be joined with an association.
+public protocol JoinableRequest {
+    associatedtype JoinPivot
+    
+    /// Creates a request that includes an association. The columns of the
+    /// associated record are selected. The returned association does not
+    /// require that the associated database table contains a matching row.
+    func including<A: Association>(optional association: A) -> Self where A.OriginRowDecoder == JoinPivot
+    
+    /// Creates a request that includes an association. The columns of the
+    /// associated record are selected. The returned association requires
+    /// that the associated database table contains a matching row.
+    func including<A: Association>(required association: A) -> Self where A.OriginRowDecoder == JoinPivot
+    
+    /// Creates a request that includes an association. The columns of the
+    /// associated record are not selected. The returned association does not
+    /// require that the associated database table contains a matching row.
+    func joining<A: Association>(optional association: A) -> Self where A.OriginRowDecoder == JoinPivot
+    
+    /// Creates a request that includes an association. The columns of the
+    /// associated record are not selected. The returned association requires
+    /// that the associated database table contains a matching row.
+    func joining<A: Association>(required association: A) -> Self where A.OriginRowDecoder == JoinPivot
 }
 
 // MARK: - DerivableRequest

@@ -99,6 +99,11 @@ extension HasOneAssociation: TableRequest where Destination: TableRecord {
     public var databaseTableName: String { return Destination.databaseTableName }
 }
 
+extension HasOneAssociation: JoinableRequest where Destination: TableRecord {
+    /// :nodoc:
+    public typealias JoinPivot = Destination
+}
+
 extension TableRecord {
     /// Creates a "Has one" association between Self and the
     /// destination type.

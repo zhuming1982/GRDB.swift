@@ -1,4 +1,6 @@
-extension QueryInterfaceRequest where RowDecoder: TableRecord {
+extension QueryInterfaceRequest: JoinableRequest where RowDecoder: TableRecord {
+    public typealias JoinPivot = RowDecoder
+    
     func joining<A: Association>(_ joinOperator: AssociationJoinOperator, _ association: A)
         -> QueryInterfaceRequest<RowDecoder>
         where A.OriginRowDecoder == RowDecoder

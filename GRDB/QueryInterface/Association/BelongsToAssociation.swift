@@ -97,6 +97,11 @@ extension BelongsToAssociation: TableRequest where Destination: TableRecord {
     public var databaseTableName: String { return Destination.databaseTableName }
 }
 
+extension BelongsToAssociation: JoinableRequest where Destination: TableRecord {
+    /// :nodoc:
+    public typealias JoinPivot = Destination
+}
+
 extension TableRecord {
     /// Creates a "Belongs To" association between Self and the
     /// destination type.
